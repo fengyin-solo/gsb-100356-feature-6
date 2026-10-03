@@ -1,5 +1,7 @@
 import { MODULE_BY_KEY } from '@/data/modules'
 import { allRows, listRows, resetRows, saveRows } from '@/data/local-store'
+import { listReports } from '@/data/water-quality/store'
+import { CONCLUSION, STATUS } from '@/data/water-quality/types'
 import type { ActionResult, EntryRow, ModuleMeta, OverviewResult, PageResult } from '@/data/types'
 
 // 会写进数据的「往回走」动作：命中就把这条记录标成异常态，看板上能一眼看出来。
@@ -87,6 +89,16 @@ export function downloadEntries(key: string): void {
 export function loadOverview(): OverviewResult {
   const rows = allRows()
   const modules = [...MODULE_BY_KEY.values()].map((meta) => {
+    if (meta.key === 'waterquality') {
+      // 水质检测走独立领域存储：待处理＝检测中/待复核，异常＝结论超标。
+      const reports = listReports()
+      return {
+        name: meta.name,
+        created: reports.length,
+        pending: reports.filter((row) => [STATUS.testing, STATUS.pendingReview].includes(row.status as typeof STATUS.testing)).length,
+        abnormal: reports.filter((row) => row.检测结论 === CONCLUSION.overproof).length,
+      }
+    }
     const entries = rows[meta.key] ?? []
     return {
       name: meta.name,
